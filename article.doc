@@ -1,0 +1,43 @@
+Teaching a SOC Triage Agent to Remember: Building with Hindsight Memory
+By THE PROMPT ENGINEERS, built for Hack With Bangalore 4.0
+Security analysts spend their days looking at alerts. Many of them are harmless: the nightly backup job that scans file servers, the weekly vulnerability scan, the sales team logging in through a VPN exit in another country. The same alerts show up again and again, and someone has to dismiss them again and again.
+We built the SOC Triage Agent, an AI analyst that remembers what the human analysts decided and uses that memory to triage the next alert better. The memory layer is powered by Hindsight, an open-source agent memory system from Vectorize.
+The problem: alert fatigue and forgotten context
+Three things make triage painful:
+• Alert fatigue. The same harmless alerts are re-triaged every day, which buries the real threats.
+• Forgotten context. What an analyst learns about the environment lives in their head and is lost when shifts change.
+• Stateless AI. A generic chatbot has no memory of past decisions. When it is unsure, it escalates, so it never gets better.
+The hard part is that harmless and dangerous alerts often share the same rule name. "Internal port scan detected" can be an approved backup job or a developer laptop doing reconnaissance. "Impossible travel login" can be a sales rep on a corporate VPN or an account takeover. "Encoded PowerShell execution" can be a patch job or a malicious macro. Remembering the rule name is not enough. The agent has to remember specifics: who, from where, doing what.
+The idea: an analyst that learns from every verdict
+Our agent treats each analyst decision as something worth keeping. Every time a human confirms that an alert was benign or malicious, along with the reason, the agent stores it. The next time a similar alert arrives, the agent looks up those past cases before it decides.
+How we use Hindsight memory
+Memory is the center of the project, not an add-on. We use all three core Hindsight operations:
+• Retain. After each alert, the analyst's verdict and reason are stored, for example "alert on host X, user Y, source Z was benign because it is the approved nightly backup."
+• Recall. Before making a decision, the agent recalls similar past cases from Hindsight and hands them to the language model as context.
+• Reflect. At the end of a run, we ask Hindsight to summarize which alert patterns are normal in this environment and which look like real threats.
+This gives us a clear before and after. Without memory, the agent is generic. With memory, it becomes specific to the environment it works in.
+How it works
+Each alert goes through the same loop:
+1. A new alert arrives in the queue.
+2. The agent recalls similar past cases from Hindsight.
+3. The language model decides to escalate or close, using the recalled context.
+4. An analyst confirms whether it was benign or malicious.
+5. The verdict is retained in Hindsight, so the next alert starts smarter.
+The model is instructed to escalate when unsure and to apply a remembered case only if it matches the alert's user, source and behavior. That keeps lookalike threats from being dismissed just because they resemble something harmless.
+The demo
+To make the learning visible, our demo uses synthetic but realistic alert data: eight alert patterns, four benign for this environment and four real threats, several of them sharing a rule name. The same patterns arrive round after round, and we run two agents side by side: a baseline with no memory, and an agent with Hindsight memory.
+• Round 1: generic. Memory is empty, so both agents behave the same and escalate anything they are unsure about.
+• Round 2: personalized. The memory agent recalls analyst verdicts and starts closing known-benign alerts.
+• Round 3: sharp. Same rule name, different user: lookalike threats still get escalated.
+For each round we track two numbers: false alarms, meaning benign alerts that were escalated, and missed threats, meaning malicious alerts that were closed. The goal is for false alarms to fall while missed threats stay at zero, because an agent that learns to ignore real threats is worse than no agent at all.
+Tech stack
+• Hindsight for persistent agent memory (retain, recall, reflect)
+• Groq with the gpt-oss-120b model for fast triage decisions
+• Python for the agent loop, scoring and the demo harness
+• Synthetic SOC data with realistic hosts, users and behaviors
+The agent also handles malformed model output safely: if a response cannot be parsed, it defaults to escalating the alert, and failed model calls are retried.
+What we learned
+Memory changes what an agent is. A stateless model gives the same cautious answer every time, while a model with memory can adapt to one specific environment. The most important design choice was storing the reason behind each verdict, not just the verdict, because the reason is what lets the agent tell a harmless lookalike from a real threat.
+What's next
+We want to connect the agent to real alert feeds, add a dashboard that shows the learning curve live, and set up Hindsight so the agent keeps separate memory for different teams or environments.
+Thanks for reading, and thank you to the Hack With Bangalore 4.0 organizers and the Hindsight team at Vectorize for the memory layer that made this project possible.
